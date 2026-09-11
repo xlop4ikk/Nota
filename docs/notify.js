@@ -136,6 +136,9 @@ export async function subscribeToPush() {
   }
 
   try { localStorage.setItem("nota.pushEnabled.v1", "1"); } catch {}
+  // Только что созданная подписка должна сразу получить актуальное расписание,
+  // иначе cron найдёт пустой items и пуш не придёт никогда.
+  await syncNow();
   return { ok: true };
 }
 
@@ -171,23 +174,57 @@ export async function isSubscribed() {
 
 /* ---------- Синхронизация задач на сервер ---------- */
 
+const LAST_SYNC_KEY = "nota.lastSyncAt.v1";
+const SYNC_FRESH_MS = 5 * 60 * 1000;
+
 let syncTimer = null;
+let pendingItems = null;
+
+async function postItems(items) {
+  try {
+    const res = await fetch(`${API_BASE}/api/items/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // keepalive: запрос должен долететь, даже если вкладку закроют сразу.
+      keepalive: true,
+      body: JSON.stringify({
+        userId: getUserId(),
+        items,
+        tzOffsetMin: new Date().getTimezoneOffset(),
+      }),
+    });
+    if (!res.ok) return false;
+    pendingItems = null;
+    try { localStorage.setItem(LAST_SYNC_KEY, String(Date.now())); } catch {}
+    return true;
+  } catch {
+    return false; // offline — попробуем при следующем изменении
+  }
+}
 
 export function syncToServer(items) {
+  pendingItems = items;
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(async () => {
-    try {
-      await fetch(`${API_BASE}/api/items/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: getUserId(),
-          items,
-          tzOffsetMin: new Date().getTimezoneOffset(),
-        }),
-      });
-    } catch { /* offline — попробуем при следующем изменении */ }
+  syncTimer = setTimeout(() => {
+    if (pendingItems) postItems(pendingItems);
   }, 1000);
+}
+
+/* Отправить расписание немедленно. Сервер должен знать задачи даже тогда,
+   когда пользователь их не менял в этой сессии (иначе cron шлёт пустоту). */
+export async function syncNow(items) {
+  clearTimeout(syncTimer);
+  if (Array.isArray(items)) pendingItems = items;
+  if (!Array.isArray(pendingItems)) return false;
+  return postItems(pendingItems);
+}
+
+export function isSyncFresh() {
+  try {
+    return Date.now() - Number(localStorage.getItem(LAST_SYNC_KEY) || 0) < SYNC_FRESH_MS;
+  } catch {
+    return false;
+  }
 }
 
 /* ---------- Локальный reminder-loop ---------- */

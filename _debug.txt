@@ -1,0 +1,1 @@
+﻿{"ok":true,"vapidConfigured":true,"users":2,"subscriptions":3}

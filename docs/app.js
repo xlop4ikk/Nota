@@ -13,6 +13,8 @@ import {
   unsubscribeFromPush,
   isSubscribed,
   syncToServer,
+  syncNow,
+  isSyncFresh,
 } from "./notify.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -324,8 +326,11 @@ async function onBellClick() {
 
   const result = await subscribeToPush();
   await updateBell();
-  if (result.ok) showToast(t("notif_on"));
-  else if (result.reason === "unsupported") showToast(t("notif_unsupported"));
+  if (result.ok) {
+    // Подписка создала в KV пустое расписание — заполняем его сразу.
+    syncNow(state.tasks);
+    showToast(t("notif_on"));
+  } else if (result.reason === "unsupported") showToast(t("notif_unsupported"));
   else if (result.reason === "denied") showToast(t("notif_denied"));
   else showToast("Не удалось включить напоминания");
 }
@@ -440,6 +445,13 @@ async function init() {
   render();
   startReminderLoop(() => state.tasks, { markTask: null, persist });
   focusTaskFromUrl();
+  // Расписание на сервере может устареть (права в другой сессии/устройстве),
+  // а cron работает только с тем, что лежит в KV.
+  if (!isSyncFresh()) syncNow(state.tasks);
+  window.addEventListener("online", () => syncNow(state.tasks));
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && !isSyncFresh()) syncNow(state.tasks);
+  });
   // Re-render every minute so relative "overdue" styles stay fresh.
   setInterval(render, 60_000);
 }
