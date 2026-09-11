@@ -1,0 +1,15 @@
+name = "nota"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+[[kv_namespaces]]
+binding = "NotaStorage"
+id = "8282d0a6287940999022f6d27c0d888d"
+
+[triggers]
+crons = ["* * * * *"]   # каждую минуту
+
+[vars]
+VAPID_PUBLIC_KEY = "BAKF4lBr_oCWFZZKU1x_QkDMeJ54UPthYFh4qmcqt0Y3Fdw1LcoOuKEIGhcXCJgFjTZ-xwSFaICRMJNt1Vcobv0"
+VAPID_SUBJECT = "xatabeach42@gmail.com"
+SITE_URL = "https://xlop4ikk.github.io/Nota/"

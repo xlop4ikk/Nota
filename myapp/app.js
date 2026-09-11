@@ -1,7 +1,5 @@
 // Nota app: state, rendering and event wiring.
 
-import { loadTasks, saveTasks, createTask } from "./store.js";
-import { t, getLang, setLang, applyI18n, formatDue } from "./i18n.js";
 import {
   registerServiceWorker,
   notificationSupported,
@@ -9,7 +7,11 @@ import {
   requestPermission,
   startReminderLoop,
   setBadge,
-} from "./notify.js";
+  subscribeToPush,
+  unsubscribeFromPush,
+  isSubscribed,
+  syncToServer,
+} from "../js/notify.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -285,13 +287,14 @@ function saveEdit() {
 
 /* ---------- notifications UI ---------- */
 
-function updateBell() {
+async function updateBell() {
   const perm = permissionState();
   const dot = els.bellBtn.querySelector(".icon-btn__dot");
+  const subscribed = await isSubscribed().catch(() => false);
   els.bellBtn.classList.toggle("is-denied", perm === "denied" || perm === "unsupported");
-  if (dot) dot.hidden = perm !== "granted";
+  if (dot) dot.hidden = !(perm === "granted" && subscribed);
   const key =
-    perm === "granted" ? "notif_on" :
+    perm === "granted" && subscribed ? "notif_on" :
     perm === "denied" ? "notif_denied" :
     perm === "unsupported" ? "notif_unsupported" : "notif_enable";
   els.bellBtn.title = t(key);
@@ -300,17 +303,29 @@ function updateBell() {
 
 async function onBellClick() {
   const perm = permissionState();
-  if (perm === "granted") {
-    showToast(t("notif_on"));
+  if (perm === "unsupported") {
+    showToast(t("notif_unsupported"));
     return;
   }
-  if (perm === "denied" || perm === "unsupported") {
-    showToast(t(perm === "denied" ? "notif_denied" : "notif_unsupported"));
+  if (perm === "denied") {
+    showToast(t("notif_denied"));
     return;
   }
-  const result = await requestPermission();
-  updateBell();
-  if (result === "granted") showToast(t("notif_on"));
+
+  const subscribed = await isSubscribed().catch(() => false);
+  if (subscribed) {
+    await unsubscribeFromPush();
+    await updateBell();
+    showToast(t("notif_off") || "Напоминания выключены");
+    return;
+  }
+
+  const result = await subscribeToPush();
+  await updateBell();
+  if (result.ok) showToast(t("notif_on"));
+  else if (result.reason === "unsupported") showToast(t("notif_unsupported"));
+  else if (result.reason === "denied") showToast(t("notif_denied"));
+  else showToast("Не удалось включить напоминания");
 }
 
 /* ---------- deep link from notification ---------- */

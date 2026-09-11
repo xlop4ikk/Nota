@@ -45,6 +45,7 @@ const dict = {
     aria_edit: "Редактировать",
     aria_delete: "Удалить",
     aria_check: "Отметить выполненной",
+    notif_off: "Напоминания выключены",
   },
   en: {
     doc_title: "Nota — to-do list",
@@ -90,6 +91,7 @@ const dict = {
     aria_edit: "Edit",
     aria_delete: "Delete",
     aria_check: "Mark as done",
+    notif_off: "Reminders are off",
   },
 };
 

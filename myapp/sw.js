@@ -101,16 +101,27 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { body: event.data ? event.data.text() : "" };
+    try { data = { body: event.data ? event.data.text() : "" }; }
+    catch { data = {}; }
   }
+
+  const title = data.title || "Nota";
+  const body = data.body || "Напоминание";
+  const tag = data.tag || ("nota-" + Date.now()); // уникальный!
+  const taskId = data.taskId;
+
+  const fullOptions = {
+    body,
+    tag,
+    icon: "./icons/icon-192.png",
+    badge: "./icons/icon-192.png",
+    data: { taskId },
+  };
+
   event.waitUntil(
-    self.registration.showNotification(data.title || "Nota", {
-      body: data.body || "",
-      icon: "./icons/icon-192.png",
-      badge: "./icons/icon-192.png",
-      tag: data.tag || "nota-push",
-      data: data.taskId ? { taskId: data.taskId } : {},
-    })
+    self.registration.showNotification(title, fullOptions)
+      .catch(() => self.registration.showNotification(title, { body, tag }))
+      .catch(() => self.registration.showNotification(title))
   );
 });
 
