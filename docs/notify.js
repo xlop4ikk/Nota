@@ -50,7 +50,7 @@ export async function requestPermission() {
   }
 }
 
-export async function registerServiceWorker(url = "sw.js") {
+export async function registerServiceWorker(url = "./sw.js") {
   if (!("serviceWorker" in navigator)) return null;
   try { return await navigator.serviceWorker.register(url); }
   catch { return null; }
@@ -157,9 +157,16 @@ export async function unsubscribeFromPush() {
 
 export async function isSubscribed() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.getSubscription();
-  return Boolean(sub);
+  try {
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+    ]);
+    const sub = await reg.pushManager.getSubscription();
+    return Boolean(sub);
+  } catch {
+    return false;
+  }
 }
 
 /* ---------- Синхронизация задач на сервер ---------- */

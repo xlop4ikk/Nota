@@ -1,5 +1,7 @@
 // Nota app: state, rendering and event wiring.
 
+import { loadTasks, saveTasks, createTask } from "./store.js";
+import { t, getLang, setLang, applyI18n, formatDue } from "./i18n.js";
 import {
   registerServiceWorker,
   notificationSupported,
@@ -11,7 +13,7 @@ import {
   unsubscribeFromPush,
   isSubscribed,
   syncToServer,
-} from "../js/notify.js";
+} from "./notify.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -31,7 +33,6 @@ const els = {
   statActive: $("#statActive"),
   statDone: $("#statDone"),
   bellBtn: $("#bellBtn"),
-  installBtn: $("#installBtn"),
   editDialog: $("#editDialog"),
   editForm: $("#editForm"),
   editTitle: $("#editTitle"),
@@ -57,6 +58,7 @@ const state = {
 
 function persist() {
   saveTasks(state.tasks);
+  syncToServer(state.tasks);
 }
 
 function uid() {
@@ -316,7 +318,7 @@ async function onBellClick() {
   if (subscribed) {
     await unsubscribeFromPush();
     await updateBell();
-    showToast(t("notif_off") || "Напоминания выключены");
+    showToast(t("notif_off"));
     return;
   }
 
