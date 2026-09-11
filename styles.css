@@ -35,6 +35,7 @@
 * { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -264,6 +265,15 @@ input { font: inherit; color: inherit; }
   border-top: 1px dashed var(--line);
   margin-top: -1px;
   padding-top: 16px;
+}
+
+.field__input[type="datetime-local"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* ===== Fields ===== */

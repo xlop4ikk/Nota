@@ -216,7 +216,7 @@ function addTask() {
   els.addDetails.hidden = true;
   els.toggleDetails.setAttribute("aria-expanded", "false");
   render();
-  els.titleInput.focus();
+  //els.titleInput.focus();
 }
 
 function deleteTask(id) {
@@ -312,28 +312,6 @@ async function onBellClick() {
   updateBell();
   if (result === "granted") showToast(t("notif_on"));
 }
-
-/* ---------- install prompt ---------- */
-
-let deferredPrompt = null;
-
-window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault();
-  deferredPrompt = event;
-  els.installBtn.hidden = false;
-});
-
-els.installBtn.addEventListener("click", async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  els.installBtn.hidden = true;
-});
-
-window.addEventListener("appinstalled", () => {
-  els.installBtn.hidden = true;
-});
 
 /* ---------- deep link from notification ---------- */
 
