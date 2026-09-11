@@ -1,5 +1,11 @@
-// Generates PWA icons as PNG files using only Node built-ins (zlib).
-// Usage: node scripts/gen-icons.mjs
+/* ============================================================
+   Nota — генератор PNG-иконок PWA.
+   Только встроенные модули Node.js (zlib), зависимостей нет.
+
+   Запуск:  node tools/gen_icons.mjs
+   Результат: docs/icons/icon-192.png, icon-512.png,
+              maskable-512.png, apple-touch-icon.png
+   ============================================================ */
 
 import { deflateSync } from "node:zlib";
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -7,10 +13,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = join(ROOT, "icons");
+const OUT = join(ROOT, "docs", "icons");
 mkdirSync(OUT, { recursive: true });
 
-/* ---------- PNG encoding ---------- */
+/* ---------- Кодирование PNG ---------- */
 
 const CRC_TABLE = (() => {
   const table = new Int32Array(256);
@@ -46,7 +52,7 @@ function encodePng(width, height, rgba) {
   ihdr[9] = 6;  // color type RGBA
   const raw = Buffer.alloc((width * 4 + 1) * height);
   for (let y = 0; y < height; y++) {
-    raw[y * (width * 4 + 1)] = 0; // filter: none
+    raw[y * (width * 4 + 1)] = 0; // байт фильтра строки: 0 (нет фильтра)
     rgba.copy(raw, y * (width * 4 + 1) + 1, y * width * 4, (y + 1) * width * 4);
   }
   return Buffer.concat([
@@ -57,9 +63,10 @@ function encodePng(width, height, rgba) {
   ]);
 }
 
-/* ---------- drawing ---------- */
+/* ---------- Рисование ---------- */
 
-// Checkmark in the 512x512 design space (round caps/joins via segment distance).
+/* Галочка в системе координат 512x512. Скруглённые концы получаются
+   измерением расстояния до отрезка — отдельной растеризации не нужно. */
 const CHECK_P1 = [148, 272];
 const CHECK_P2 = [222, 346];
 const CHECK_P3 = [372, 182];
@@ -79,7 +86,8 @@ function distToSegment(px, py, ax, ay, bx, by) {
   return Math.hypot(qx, qy);
 }
 
-// Signed distance to a rounded rect; negative inside.
+/* Знаковое расстояние до скруглённого прямоугольника:
+   меньше нуля внутри фигуры, больше — снаружи. */
 function roundedRectSDF(x, y, size, radius) {
   const half = size / 2;
   const qx = Math.abs(x - half) - (half - radius);
@@ -91,7 +99,7 @@ function roundedRectSDF(x, y, size, radius) {
 
 function renderIcon(size, { rounded = true, contentScale = 1 } = {}) {
   const rgba = Buffer.alloc(size * size * 4);
-  const ss = 4; // supersampling factor
+  const ss = 4; // суперсэмплинг: сглаживаем края четырьмя выборками на пиксель
   const radius = size * (120 / 512);
   const scale = size / 512;
   const center = size / 2;
@@ -109,7 +117,8 @@ function renderIcon(size, { rounded = true, contentScale = 1 } = {}) {
             ? Math.min(1, Math.max(0, 0.5 - roundedRectSDF(x, y, size, radius)))
             : 1;
           if (bgA <= 0) continue;
-          // Map sample into the (possibly shrunk) content box.
+          /* Пересчитываем точку выборки в уменьшенную область контента
+             (для maskable-иконок галочка занимает 62% плашки) */
           const cx = (x - center) / contentScale + center;
           const cy = (y - center) / contentScale + center;
           const d = Math.min(
@@ -125,7 +134,7 @@ function renderIcon(size, { rounded = true, contentScale = 1 } = {}) {
       const bgA = bgSum / samples;
       if (bgA <= 0) continue;
       const fg = Math.min(1, fgSum / bgSum);
-      const t = (px + py) / (2 * size); // diagonal gradient factor
+      const t = (px + py) / (2 * size); // коэффициент диагонального градиента
       const r = (BG_TOP[0] + (BG_BOTTOM[0] - BG_TOP[0]) * t) * (1 - fg) + 255 * fg;
       const g = (BG_TOP[1] + (BG_BOTTOM[1] - BG_TOP[1]) * t) * (1 - fg) + 255 * fg;
       const b = (BG_TOP[2] + (BG_BOTTOM[2] - BG_TOP[2]) * t) * (1 - fg) + 255 * fg;
